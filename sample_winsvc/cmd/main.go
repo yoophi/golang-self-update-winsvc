@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/blang/semver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 
 	"golang-self-update-winsvc/app/delivery/winsvc"
@@ -22,38 +22,40 @@ var (
 )
 
 var (
-	version  = "1.4.0"
+	version  = "1.5.0"
 	basePath string
 )
 
-func doSelfUpdate() {
-	v := semver.MustParse(version)
+func doSelfUpdate() (bool, error) {
+	var (
+		v = semver.MustParse(version)
+	)
 	latest, err := selfupdate.UpdateSelf(v, "yoophi/golang-self-update-winsvc")
-	fmt.Println("latest", latest)
 	if err != nil {
 		log.Println("Binary update failed:", err)
-		return
+		return false, err
 	}
+	zap.L().Debug("latest version", zap.Any("latest", latest))
+
 	if latest.Version.Equals(v) {
 		// latest version is the same as current version. It means current binary is up-to-date.
 		zap.L().Info("current binary is the latest version", zap.String("version", version))
-	} else {
-		zap.L().Info("successfully updated to version",
-			zap.Any("latest-version", latest.Version),
-			zap.String("current-version", version),
-		)
-		zap.L().Info("latest-version release note", zap.Any("release-note", latest.ReleaseNotes))
-
-		binPath, err := winsvc.ExePath()
-		if err != nil {
-			zap.L().Error("get exe path", zap.Error(err))
-			os.Exit(0)
-		}
-		if err = syscall.Exec(binPath, os.Args, os.Environ()); err != nil {
-			zap.L().Error("syscall.Exec()", zap.Error(err))
-			os.Exit(0)
-		}
+		return false, nil
 	}
+
+	zap.L().Info("successfully updated to version",
+		zap.Any("latest-version", latest.Version),
+		zap.String("current-version", version),
+	)
+	zap.L().Info("latest-version release note", zap.Any("release-note", latest.ReleaseNotes))
+
+	//binPath, err := winsvc.ExePath()
+	//if err != nil {
+	//	zap.L().Error("get exe path", zap.Error(err))
+	//	os.Exit(0)
+	//}
+
+	return true, nil
 }
 
 func init() {
@@ -77,7 +79,10 @@ func init() {
 func main() {
 	zap.L().Info("process started ...", zap.Any("args", os.Args))
 
-	doSelfUpdate()
+	updated, err := doSelfUpdate()
+	if err != nil {
+		zap.L().Error("self update", zap.Error(err))
+	}
 
 	inService, err := svc.IsWindowsService()
 	if err != nil {
@@ -87,6 +92,10 @@ func main() {
 
 	if inService && os.Args[1] == "is" {
 		zap.L().Debug("process is running as windows service")
+		if updated {
+			windows.Exit(1)
+			return
+		}
 		winsvc.RunService(version, serviceName, false)
 		return
 	}
