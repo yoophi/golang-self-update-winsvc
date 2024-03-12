@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/blang/semver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
@@ -21,7 +22,7 @@ var (
 )
 
 var (
-	version  = "1.3.0"
+	version  = "1.4.0"
 	basePath string
 )
 
@@ -42,7 +43,16 @@ func doSelfUpdate() {
 			zap.String("current-version", version),
 		)
 		zap.L().Info("latest-version release note", zap.Any("release-note", latest.ReleaseNotes))
-		os.Exit(2)
+
+		binPath, err := winsvc.ExePath()
+		if err != nil {
+			zap.L().Error("get exe path", zap.Error(err))
+			os.Exit(0)
+		}
+		if err = syscall.Exec(binPath, os.Args, os.Environ()); err != nil {
+			zap.L().Error("syscall.Exec()", zap.Error(err))
+			os.Exit(0)
+		}
 	}
 }
 

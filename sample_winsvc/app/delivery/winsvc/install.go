@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-func exePath() (string, error) {
+func ExePath() (string, error) {
 	prog := os.Args[0]
 	p, err := filepath.Abs(prog)
 	if err != nil {
@@ -38,7 +38,7 @@ func exePath() (string, error) {
 }
 
 func InstallService(name string, desc string) error {
-	exepath, err := exePath()
+	exepath, err := ExePath()
 	if err != nil {
 		return err
 	}
