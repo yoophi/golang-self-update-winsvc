@@ -2,10 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/blang/semver"
+	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"go.uber.org/zap"
 	"golang.org/x/sys/windows/svc"
 
@@ -18,9 +21,26 @@ var (
 )
 
 var (
-	version  = "1.0.0"
+	version  = "1.1.0"
 	basePath string
 )
+
+func doSelfUpdate() {
+	v := semver.MustParse(version)
+	latest, err := selfupdate.UpdateSelf(v, "yoophi/golang-self-update-winsvc")
+	fmt.Println("latest", latest)
+	if err != nil {
+		log.Println("Binary update failed:", err)
+		return
+	}
+	if latest.Version.Equals(v) {
+		// latest version is the same as current version. It means current binary is up to date.
+		log.Println("Current binary is the latest version", version)
+	} else {
+		log.Println("Successfully updated to version", latest.Version)
+		log.Println("Release note:\n", latest.ReleaseNotes)
+	}
+}
 
 func init() {
 	basePath = filepath.Dir(os.Args[0])
@@ -42,6 +62,9 @@ func init() {
 
 func main() {
 	zap.L().Info("process started ...", zap.Any("args", os.Args))
+
+	doSelfUpdate()
+
 	inService, err := svc.IsWindowsService()
 	if err != nil {
 		zap.L().Error("check process is in windows service", zap.Error(err))
