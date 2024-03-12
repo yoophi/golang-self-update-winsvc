@@ -18,7 +18,7 @@ var (
 )
 
 var (
-	version  = "<unknown>"
+	version  = "1.0.0"
 	basePath string
 )
 
