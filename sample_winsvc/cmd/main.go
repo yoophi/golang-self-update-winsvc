@@ -21,7 +21,7 @@ var (
 )
 
 var (
-	version  = "1.1.0"
+	version  = "1.2.0"
 	basePath string
 )
 
@@ -34,11 +34,15 @@ func doSelfUpdate() {
 		return
 	}
 	if latest.Version.Equals(v) {
-		// latest version is the same as current version. It means current binary is up to date.
-		log.Println("Current binary is the latest version", version)
+		// latest version is the same as current version. It means current binary is up-to-date.
+		zap.L().Info("current binary is the latest version", zap.String("version", version))
 	} else {
-		log.Println("Successfully updated to version", latest.Version)
-		log.Println("Release note:\n", latest.ReleaseNotes)
+		zap.L().Info("successfully updated to version",
+			zap.Any("latest-version", latest.Version),
+			zap.String("current-version", version),
+		)
+		zap.L().Info("latest-version release note", zap.Any("release-note", latest.ReleaseNotes))
+		os.Exit(2)
 	}
 }
 
